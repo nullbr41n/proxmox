@@ -1,8 +1,8 @@
 locals {
-  cp_slots = toset([for slot in var.enabled_control_plane_slots : slot if slot >= 0 && slot <= var.control_plane_slot_limit])
+  cp_slots     = toset([for slot in var.enabled_control_plane_slots : slot if slot >= 0 && slot <= var.control_plane_slot_limit])
   worker_slots = toset([for slot in var.enabled_worker_slots : slot if slot >= 0 && slot <= var.worker_slot_limit])
 
-  vip_parts = split(".", var.kubeadm_control_plane_vip)
+  vip_parts      = split(".", var.kubeadm_control_plane_vip)
   cluster_subnet = "${join(".", slice(local.vip_parts, 0, 3))}.0/24"
 
   cp0_ip = cidrhost(local.cluster_subnet, var.control_plane_base_octet + 1)
@@ -16,13 +16,13 @@ locals {
   worker_map = {
     for slot in local.worker_slots :
     "worker-${slot}" => {
-      name                 = "worker-${slot}"
-      vm_id                = var.worker_vm_id_base + slot
-      disk_size            = var.worker_disk_size
-      disk_import_file_id  = data.terraform_remote_state.base.outputs.cloud_image_file_id
-      memory_dedicated     = var.worker_memory_dedicated
-      cpu_cores            = var.worker_cpu_cores
-      tags                 = ["k8s", "worker"]
+      name                = "worker-${slot}"
+      vm_id               = var.worker_vm_id_base + slot
+      disk_size           = var.worker_disk_size
+      disk_import_file_id = data.terraform_remote_state.base.outputs.cloud_image_file_id
+      memory_dedicated    = var.worker_memory_dedicated
+      cpu_cores           = var.worker_cpu_cores
+      tags                = ["k8s", "worker"]
       initialization = {
         user_data_file_id = proxmox_virtual_environment_file.cloud_init_worker["worker-${slot}"].id
         ipv4_address      = "${cidrhost(local.cluster_subnet, var.worker_base_octet + slot)}/24"
@@ -36,8 +36,8 @@ locals {
 }
 
 module "control_plane_bootstrap" {
-  count      = contains(local.cp_slots, 0) ? 1 : 0
-  source     = "../modules/vm"
+  count  = contains(local.cp_slots, 0) ? 1 : 0
+  source = "../modules/vm"
 
   node_name                   = var.vm_node_name
   disk_datastore_id           = var.vm_disk_datastore_id
@@ -53,13 +53,13 @@ module "control_plane_bootstrap" {
 
   vms = {
     "cp-0" = {
-      name                 = "cp-0"
-      vm_id                = var.control_plane_vm_id_base
-      disk_size            = var.control_plane_disk_size
-      disk_import_file_id  = data.terraform_remote_state.base.outputs.cloud_image_file_id
-      memory_dedicated     = var.control_plane_memory_dedicated
-      cpu_cores            = var.control_plane_cpu_cores
-      tags                 = ["k8s", "control-plane", "bootstrap"]
+      name                = "cp-0"
+      vm_id               = var.control_plane_vm_id_base
+      disk_size           = var.control_plane_disk_size
+      disk_import_file_id = data.terraform_remote_state.base.outputs.cloud_image_file_id
+      memory_dedicated    = var.control_plane_memory_dedicated
+      cpu_cores           = var.control_plane_cpu_cores
+      tags                = ["k8s", "control-plane", "bootstrap"]
       initialization = {
         user_data_file_id = proxmox_virtual_environment_file.cloud_init_cp0.id
         ipv4_address      = "${local.cp0_ip}/24"
@@ -113,13 +113,13 @@ module "control_plane_join_1" {
 
   vms = {
     "cp-1" = {
-      name                 = "cp-1"
-      vm_id                = var.control_plane_vm_id_base + 1
-      disk_size            = var.control_plane_disk_size
-      disk_import_file_id  = data.terraform_remote_state.base.outputs.cloud_image_file_id
-      memory_dedicated     = var.control_plane_memory_dedicated
-      cpu_cores            = var.control_plane_cpu_cores
-      tags                 = ["k8s", "control-plane"]
+      name                = "cp-1"
+      vm_id               = var.control_plane_vm_id_base + 1
+      disk_size           = var.control_plane_disk_size
+      disk_import_file_id = data.terraform_remote_state.base.outputs.cloud_image_file_id
+      memory_dedicated    = var.control_plane_memory_dedicated
+      cpu_cores           = var.control_plane_cpu_cores
+      tags                = ["k8s", "control-plane"]
       initialization = {
         user_data_file_id = proxmox_virtual_environment_file.cloud_init_control_plane["cp-1"].id
         ipv4_address      = "${local.cp1_ip}/24"
@@ -151,13 +151,13 @@ module "control_plane_join_2" {
 
   vms = {
     "cp-2" = {
-      name                 = "cp-2"
-      vm_id                = var.control_plane_vm_id_base + 2
-      disk_size            = var.control_plane_disk_size
-      disk_import_file_id  = data.terraform_remote_state.base.outputs.cloud_image_file_id
-      memory_dedicated     = var.control_plane_memory_dedicated
-      cpu_cores            = var.control_plane_cpu_cores
-      tags                 = ["k8s", "control-plane"]
+      name                = "cp-2"
+      vm_id               = var.control_plane_vm_id_base + 2
+      disk_size           = var.control_plane_disk_size
+      disk_import_file_id = data.terraform_remote_state.base.outputs.cloud_image_file_id
+      memory_dedicated    = var.control_plane_memory_dedicated
+      cpu_cores           = var.control_plane_cpu_cores
+      tags                = ["k8s", "control-plane"]
       initialization = {
         user_data_file_id = proxmox_virtual_environment_file.cloud_init_control_plane["cp-2"].id
         ipv4_address      = "${local.cp2_ip}/24"
@@ -189,13 +189,13 @@ module "control_plane_join_3" {
 
   vms = {
     "cp-3" = {
-      name                 = "cp-3"
-      vm_id                = var.control_plane_vm_id_base + 3
-      disk_size            = var.control_plane_disk_size
-      disk_import_file_id  = data.terraform_remote_state.base.outputs.cloud_image_file_id
-      memory_dedicated     = var.control_plane_memory_dedicated
-      cpu_cores            = var.control_plane_cpu_cores
-      tags                 = ["k8s", "control-plane", "replacement"]
+      name                = "cp-3"
+      vm_id               = var.control_plane_vm_id_base + 3
+      disk_size           = var.control_plane_disk_size
+      disk_import_file_id = data.terraform_remote_state.base.outputs.cloud_image_file_id
+      memory_dedicated    = var.control_plane_memory_dedicated
+      cpu_cores           = var.control_plane_cpu_cores
+      tags                = ["k8s", "control-plane", "replacement"]
       initialization = {
         user_data_file_id = proxmox_virtual_environment_file.cloud_init_control_plane["cp-3"].id
         ipv4_address      = "${local.cp3_ip}/24"
@@ -227,13 +227,13 @@ module "control_plane_join_4" {
 
   vms = {
     "cp-4" = {
-      name                 = "cp-4"
-      vm_id                = var.control_plane_vm_id_base + 4
-      disk_size            = var.control_plane_disk_size
-      disk_import_file_id  = data.terraform_remote_state.base.outputs.cloud_image_file_id
-      memory_dedicated     = var.control_plane_memory_dedicated
-      cpu_cores            = var.control_plane_cpu_cores
-      tags                 = ["k8s", "control-plane", "replacement"]
+      name                = "cp-4"
+      vm_id               = var.control_plane_vm_id_base + 4
+      disk_size           = var.control_plane_disk_size
+      disk_import_file_id = data.terraform_remote_state.base.outputs.cloud_image_file_id
+      memory_dedicated    = var.control_plane_memory_dedicated
+      cpu_cores           = var.control_plane_cpu_cores
+      tags                = ["k8s", "control-plane", "replacement"]
       initialization = {
         user_data_file_id = proxmox_virtual_environment_file.cloud_init_control_plane["cp-4"].id
         ipv4_address      = "${local.cp4_ip}/24"

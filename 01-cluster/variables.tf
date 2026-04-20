@@ -133,7 +133,7 @@ variable "kubeadm_control_plane_vip" {
   type        = string
 
   validation {
-    condition = join(".", slice(split(".", var.kubeadm_control_plane_vip), 0, 3)) == join(".", slice(split(".", var.vm_ipv4_gateway), 0, 3))
+    condition     = join(".", slice(split(".", var.kubeadm_control_plane_vip), 0, 3)) == join(".", slice(split(".", var.vm_ipv4_gateway), 0, 3))
     error_message = "kubeadm_control_plane_vip must be on the same /24 guest subnet as vm_ipv4_gateway. Example: guest nodes 192.168.100.x, VIP 192.168.100.20, gateway 192.168.100.254."
   }
 }

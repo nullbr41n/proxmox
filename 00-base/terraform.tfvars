@@ -1,10 +1,10 @@
-proxmox_endpoint          = "https://10.10.10.1:8006/api2/json"
+proxmox_endpoint         = "https://10.10.10.1:8006/api2/json"
 proxmox_insecure         = true
 proxmox_ssh_user         = "nixservuser001"
-proxmox_ssh_node_name     = "bhado"
-proxmox_ssh_node_address  = "10.10.10.1"
-proxmox_ssh_port          = 21736
+proxmox_ssh_node_name    = "bhado"
+proxmox_ssh_node_address = "10.10.10.1"
+proxmox_ssh_port         = 21736
 cloud_image_url          = "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud.latest.x86_64.qcow2"
-cloud_image_datastore_id  = "local"
-cloud_image_node_name     = "bhado"
+cloud_image_datastore_id = "local"
+cloud_image_node_name    = "bhado"
 cloud_image_file_name    = "rocky-9-genericcloud.qcow2"

@@ -1,8 +1,8 @@
 resource "proxmox_virtual_environment_vm" "vm" {
   for_each = var.vms
 
-  name      = each.value.name
-  node_name = coalesce(each.value.node_name, var.node_name)
+  name            = each.value.name
+  node_name       = coalesce(each.value.node_name, var.node_name)
   keyboard_layout = each.value.keyboard_layout
 
   description = each.value.description
