@@ -1,8 +1,10 @@
-  **/.terraform/
-  **/terraform.tfstate
-  **/terraform.tfstate.*
-  **/terraform.tfvars
-  *.tfvars
-  *.tfvars.json
-  **/.env
-  OLD/**
+**/.terraform/
+**/.terraform.lock.hcl
+**/.terraform.tfstate.lock.info
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/terraform.tfvars
+*.tfvars
+*.tfvars.json
+**/.env
+OLD/**
