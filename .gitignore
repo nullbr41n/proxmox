@@ -4,5 +4,5 @@
   **/terraform.tfvars
   *.tfvars
   *.tfvars.json
-  .env
+  **/.env
   OLD/**
