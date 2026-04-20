@@ -50,6 +50,16 @@ cd ../01-cluster
 source .env #Find this in vault its not commited
 terraform init
 terraform apply
+
+export KUBECONFIG=/path/to/admin.conf
+
+cd ../02-metallb
+terraform init
+terraform apply
+
+cd ../03-argocd
+terraform init
+terraform apply
 ```
 
 ## Replacement Workflow

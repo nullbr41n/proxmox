@@ -3,6 +3,7 @@
 ## TL;DR
 
 - First run: apply `00-base`, then apply `01-cluster`.
+- Then apply `02-metallb`, `03-argocd`, then `04-argocd-apps`.
 - Put secrets in `.env` as `TF_VAR_*`, not in committed `terraform.tfvars`.
 - Later runs: do not treat an existing cluster like fresh bootstrap. Replace bad nodes with `01-cluster/scripts/replace-control-plane.sh`.
 
@@ -26,6 +27,20 @@ terraform init
 terraform apply
 
 cd ../01-cluster
+terraform init
+terraform apply
+
+export KUBECONFIG=/path/to/admin.conf
+
+cd ../02-metallb
+terraform init
+terraform apply
+
+cd ../03-argocd
+terraform init
+terraform apply
+
+cd ../04-argocd-apps
 terraform init
 terraform apply
 ```
@@ -118,6 +133,19 @@ kubectl / Terraform |  |         kube-vip VIP          |   |
   |-- kube-vip provides stable API VIP
   |-- create cp-1, cp-2, ... sequentially
   |-- create worker-0, worker-1, ...
+  v
+02-metallb
+  |
+  |-- install MetalLB via Helm
+  v
+03-argocd
+  |
+  |-- configure MetalLB IPAddressPool and L2Advertisement
+  |-- install Argo CD via Helm
+  v
+04-argocd-apps
+  |
+  |-- create app-of-apps Application
 ```
 
 ## Control-Plane Flow
