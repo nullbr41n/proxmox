@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-ingress-app
+  namespace: test-ingress-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-ingress-app
+  template:
+    metadata:
+      labels:
+        app: test-ingress-app
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0.0
+          args:
+            - "-text=hello from tikejhya.intra.nixbin.com"
+          ports:
+            - containerPort: 5678
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5678
+            initialDelaySeconds: 2
+            periodSeconds: 5
