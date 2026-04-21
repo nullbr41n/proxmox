@@ -12,4 +12,4 @@ terraform apply
 ```
 
 Run this after `05-argocd`.
-This stage creates the root app-of-apps `Application` pointing at the `argocd` path in your Git repo.
+This stage creates the root bootstrap `Application` pointing at the `argocd` path in your Git repo.

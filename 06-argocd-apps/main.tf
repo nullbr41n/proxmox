@@ -3,7 +3,7 @@ resource "kubernetes_manifest" "argocd_apps" {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "Application"
     metadata = {
-      name       = "apps"
+      name       = "bootstrap"
       namespace  = "argocd"
       finalizers = ["resources-finalizer.argocd.argoproj.io"]
     }
