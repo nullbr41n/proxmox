@@ -7,4 +7,5 @@
 *.tfvars
 *.tfvars.json
 **/.env
+.env
 OLD/**

@@ -20,7 +20,6 @@ without each stage downloading the same file again.
 
 ```bash
 cd 00-base
-source .env #Find this in vault its not commited
 terraform init
 terraform apply
 ```

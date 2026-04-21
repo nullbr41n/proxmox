@@ -29,21 +29,3 @@ resource "kubernetes_manifest" "metallb_l2_advertisement" {
 
   depends_on = [kubernetes_manifest.metallb_ip_pool]
 }
-
-resource "helm_release" "argocd" {
-  name       = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-cd"
-  namespace  = "argocd"
-
-  create_namespace = true
-  wait             = true
-  timeout          = 900
-
-  set = [{
-    name  = "server.service.type"
-    value = var.argocd_server_service_type
-  }]
-
-  depends_on = [kubernetes_manifest.metallb_l2_advertisement]
-}

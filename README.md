@@ -3,7 +3,7 @@
 ## TL;DR
 
 - First run: apply `00-base`, then apply `01-cluster`.
-- Then apply `02-metallb`, `03-argocd`, then `04-argocd-apps`.
+- Then apply `02-metallb`, `03-networking`, `04-ingress-nginx`, `05-argocd`, then `06-argocd-apps`.
 - Put secrets in `.env` as `TF_VAR_*`, not in committed `terraform.tfvars`.
 - Later runs: do not treat an existing cluster like fresh bootstrap. Replace bad nodes with `01-cluster/scripts/replace-control-plane.sh`.
 
@@ -12,9 +12,11 @@
 Create `.env` with:
 
 ```bash
-export TF_VAR_proxmox_token_id="automation@pam!terraform"
+export TF_VAR_proxmox_token_id="replace-me"
 export TF_VAR_proxmox_token_secret="replace-me"
 export TF_VAR_vm_rocky_password="replace-me"
+export TF_VAR_argocd_apps_repo_ssh_private_key="$(cat ./replace./me")"
+export TF_VAR_kubeconfig_path="replace-me"
 ```
 
 Then run:
@@ -30,17 +32,24 @@ cd ../01-cluster
 terraform init
 terraform apply
 
-export KUBECONFIG=/path/to/admin.conf
 
 cd ../02-metallb
 terraform init
 terraform apply
 
-cd ../03-argocd
+cd ../03-networking
 terraform init
 terraform apply
 
-cd ../04-argocd-apps
+cd ../04-ingress-nginx
+terraform init
+terraform apply
+
+cd ../05-argocd
+terraform init
+terraform apply
+
+cd ../06-argocd-apps
 terraform init
 terraform apply
 ```
@@ -138,12 +147,20 @@ kubectl / Terraform |  |         kube-vip VIP          |   |
   |
   |-- install MetalLB via Helm
   v
-03-argocd
+03-networking
   |
   |-- configure MetalLB IPAddressPool and L2Advertisement
+  v
+04-ingress-nginx
+  |
+  |-- install ingress-nginx via Helm
+  |-- ingress controller Service receives one MetalLB IP
+  v
+05-argocd
+  |
   |-- install Argo CD via Helm
   v
-04-argocd-apps
+06-argocd-apps
   |
   |-- create app-of-apps Application
 ```

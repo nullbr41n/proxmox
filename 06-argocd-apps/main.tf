@@ -13,9 +13,6 @@ resource "kubernetes_manifest" "argocd_apps" {
         repoURL        = var.argocd_apps_repo_url
         targetRevision = var.argocd_apps_target_revision
         path           = var.argocd_apps_path
-        helm = {
-          valueFiles = var.argocd_apps_helm_value_files
-        }
       }
       destination = {
         server    = "https://kubernetes.default.svc"
@@ -23,8 +20,7 @@ resource "kubernetes_manifest" "argocd_apps" {
       }
       syncPolicy = {
         automated = {
-          prune    = true
-          selfHeal = true
+          enabled = true
         }
       }
     }
