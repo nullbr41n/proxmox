@@ -259,3 +259,33 @@ variable "bootstrap_ready_timeout_seconds" {
   type        = number
   default     = 2700
 }
+
+variable "backup_nfs_enabled" {
+  description = "Mount the shared backup NFS export on every node during first boot."
+  type        = bool
+  default     = true
+}
+
+variable "backup_nfs_server" {
+  description = "NFS server hosting the shared backup export."
+  type        = string
+  default     = "10.10.10.206"
+}
+
+variable "backup_nfs_export_path" {
+  description = "Export path on the NFS server."
+  type        = string
+  default     = "/data/backups"
+}
+
+variable "backup_nfs_mount_path" {
+  description = "Local mountpoint for the shared backup export."
+  type        = string
+  default     = "/mnt/backup"
+}
+
+variable "backup_nfs_mount_options" {
+  description = "Mount options used for the shared backup NFS export."
+  type        = string
+  default     = "rw,vers=4.2,rsize=262144,wsize=262144,hard,proto=tcp,timeo=600,retrans=2,sec=sys,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30"
+}

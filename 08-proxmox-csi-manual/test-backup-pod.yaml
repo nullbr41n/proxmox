@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-proxmox-csi-backup
+  namespace: proxmox-csi-test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: backup
+      image: alpine:3.20
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          apk add --no-cache rsync
+          TS="$(date +%F-%H%M%S)"
+          DEST="/backup/proxmox-csi-test/${TS}"
+          mkdir -p "${DEST}"
+          rsync -a /data/ "${DEST}/"
+          echo "backup complete: ${DEST}"
+      volumeMounts:
+        - name: app-data
+          mountPath: /data
+          readOnly: true
+        - name: backup-target
+          mountPath: /backup
+  volumes:
+    - name: app-data
+      persistentVolumeClaim:
+        claimName: test-proxmox-csi
+        readOnly: true
+    - name: backup-target
+      hostPath:
+        path: /mnt/backup
+        type: Directory

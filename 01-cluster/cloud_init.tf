@@ -289,6 +289,30 @@ write_files:
 
       http.server.HTTPServer(("", ${var.kubeadm_join_port}), Handler).serve_forever()
     permissions: '0700'
+  - path: /usr/local/bin/setup-backup-nfs.sh
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      if [ "${var.backup_nfs_enabled}" != "true" ]; then
+        exit 0
+      fi
+
+      MOUNT_POINT="${var.backup_nfs_mount_path}"
+      NFS_SOURCE="${var.backup_nfs_server}:${var.backup_nfs_export_path}"
+      NFS_OPTIONS="${var.backup_nfs_mount_options}"
+      FSTAB_LINE="$${NFS_SOURCE} $${MOUNT_POINT} nfs4 $${NFS_OPTIONS} 0 0"
+
+      mkdir -p "$${MOUNT_POINT}"
+
+      if ! grep -Fq "$${FSTAB_LINE}" /etc/fstab; then
+        printf '%s\n' "$${FSTAB_LINE}" >> /etc/fstab
+      fi
+
+      if ! mountpoint -q "$${MOUNT_POINT}"; then
+        mount "$${MOUNT_POINT}"
+      fi
+    permissions: '0700'
   - path: /etc/systemd/system/join-server.service
     content: |
       [Unit]
@@ -314,6 +338,7 @@ packages:
   - kubelet
   - kubeadm
   - kubectl
+  - nfs-utils
 
 EOT
 
@@ -326,6 +351,7 @@ runcmd:
     hostname cp-0 || true
     swapoff -a || true
     sed -i '/ swap / s/^/#/' /etc/fstab
+    /usr/local/bin/setup-backup-nfs.sh
     modprobe br_netfilter overlay 2>/dev/null || true
     echo -e 'br_netfilter\noverlay' > /etc/modules-load.d/br_netfilter.conf
     cat >/etc/sysctl.d/99-kubernetes.conf <<'EOF'
@@ -386,6 +412,7 @@ runcmd:
     hostname ${name} || true
     swapoff -a || true
     sed -i '/ swap / s/^/#/' /etc/fstab
+    /usr/local/bin/setup-backup-nfs.sh
     modprobe br_netfilter overlay 2>/dev/null || true
     echo -e 'br_netfilter\noverlay' > /etc/modules-load.d/br_netfilter.conf
     cat >/etc/sysctl.d/99-kubernetes.conf <<'EOF'
@@ -434,6 +461,7 @@ runcmd:
     hostname worker-${slot} || true
     swapoff -a || true
     sed -i '/ swap / s/^/#/' /etc/fstab
+    /usr/local/bin/setup-backup-nfs.sh
     modprobe br_netfilter overlay 2>/dev/null || true
     echo -e 'br_netfilter\noverlay' > /etc/modules-load.d/br_netfilter.conf
     cat >/etc/sysctl.d/99-kubernetes.conf <<'EOF'
