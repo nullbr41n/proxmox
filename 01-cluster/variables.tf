@@ -154,6 +154,18 @@ variable "kubeadm_join_port" {
   default     = 8080
 }
 
+variable "kubernetes_topology_region" {
+  description = "Node label value for topology.kubernetes.io/region."
+  type        = string
+  default     = "proxmox"
+}
+
+variable "kubernetes_topology_zone" {
+  description = "Node label value for topology.kubernetes.io/zone."
+  type        = string
+  default     = "bhado"
+}
+
 variable "cp0_bootstrap_mode" {
   description = "How cp-0 should behave. Use 'init' for first cluster creation and 'join' when recreating cp-0 into an already healthy control-plane quorum."
   type        = string

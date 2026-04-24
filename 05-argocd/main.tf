@@ -57,3 +57,31 @@ resource "kubernetes_secret_v1" "argocd_apps_repo" {
 
   depends_on = [helm_release.argocd]
 }
+
+resource "kubernetes_secret_v1" "proxmox_csi_config" {
+  metadata {
+    name      = "proxmox-csi-config"
+    namespace = "kube-system"
+  }
+
+  data = {
+    "config.yaml" = yamlencode({
+      features = {
+        provider = "default"
+      }
+      clusters = [
+        {
+          url          = var.proxmox_endpoint
+          insecure     = var.proxmox_insecure
+          token_id     = var.proxmox_token_id
+          token_secret = var.proxmox_token_secret
+          region       = "proxmox"
+        }
+      ]
+    })
+  }
+
+  type = "Opaque"
+
+  depends_on = [helm_release.argocd]
+}

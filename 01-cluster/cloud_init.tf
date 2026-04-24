@@ -58,6 +58,10 @@ write_files:
         export KUBECONFIG=/etc/kubernetes/admin.conf
       fi
     permissions: '0644'
+  - path: /etc/sysconfig/kubelet
+    content: |
+      KUBELET_EXTRA_ARGS=--node-labels=topology.kubernetes.io/region=${var.kubernetes_topology_region},topology.kubernetes.io/zone=${var.kubernetes_topology_zone}
+    permissions: '0644'
   - path: /usr/local/bin/install-kube-vip.sh
     content: |
       #!/bin/bash

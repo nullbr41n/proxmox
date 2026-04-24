@@ -4,6 +4,29 @@ variable "kubeconfig_path" {
   default     = ""
 }
 
+variable "proxmox_endpoint" {
+  description = "Proxmox API endpoint URL reused for the CSI config secret."
+  type        = string
+}
+
+variable "proxmox_token_id" {
+  description = "Proxmox API token ID reused for the CSI config secret."
+  type        = string
+  sensitive   = true
+}
+
+variable "proxmox_token_secret" {
+  description = "Proxmox API token secret reused for the CSI config secret."
+  type        = string
+  sensitive   = true
+}
+
+variable "proxmox_insecure" {
+  description = "Skip TLS verification for the Proxmox API in the CSI config secret."
+  type        = bool
+  default     = true
+}
+
 variable "argocd_server_service_type" {
   description = "Argo CD server Service type."
   type        = string

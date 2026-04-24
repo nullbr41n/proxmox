@@ -4,6 +4,7 @@
 
 - First run: apply `00-base`, then apply `01-cluster`.
 - Then apply `02-metallb`, `03-networking`, `04-ingress-nginx`, `05-argocd`, then `06-argocd-apps`.
+- Everything after a functional Argo CD bootstrap now lives under `projects/`.
 - Put secrets in `.env` as `TF_VAR_*`, not in committed `terraform.tfvars`.
 - Later runs: do not treat an existing cluster like fresh bootstrap. Replace bad nodes with `01-cluster/scripts/replace-control-plane.sh`.
 
@@ -163,6 +164,10 @@ kubectl / Terraform |  |         kube-vip VIP          |   |
 06-argocd-apps
   |
   |-- create app-of-apps Application
+  v
+projects/
+  |
+  |-- app manifests and post-bootstrap workloads managed after Argo CD is up
 ```
 
 ## Control-Plane Flow

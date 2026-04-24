@@ -30,6 +30,7 @@ The guest subnet can still be `10.10.10.x` if that is how your environment is de
 - optional worker nodes (`worker-0`..`worker-9`)
 - cloud-init snippets for each enabled node
 - an NFS backup mount on every node at `/mnt/backup` by default
+- kubelet topology labels on every node at first boot
 
 ## cp-0 Mode
 
@@ -130,6 +131,7 @@ Example: `worker-1` is bad.
 - A small etcd cleanup script is kept so a dead control-plane member does not permanently block replacement.
 - Nodes install `nfs-utils` and configure `${var.backup_nfs_server}:${var.backup_nfs_export_path}` at `${var.backup_nfs_mount_path}` on first boot for backup targets.
 - The backup mount is persisted in `/etc/fstab` with `_netdev`, `nofail`, and `x-systemd.automount` so machine reboots do not block on NFS availability.
+- Nodes register with `topology.kubernetes.io/region=${var.kubernetes_topology_region}` and `topology.kubernetes.io/zone=${var.kubernetes_topology_zone}` via kubelet startup args on first boot.
 - Cloud-init and bootstrap are treated as first-boot initialization. Changing the uploaded cloud-init snippet reference later does not recreate an existing VM.
 
 ## Limits
