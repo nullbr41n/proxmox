@@ -144,8 +144,27 @@ variable "kube_vip_interface" {
 }
 
 variable "kube_vip_version" {
-  type    = string
-  default = "v0.8.0"
+  description = "kube-vip image tag. v1.0.4+ supports vip_preserve_on_leadership_loss for safer live failover."
+  type        = string
+  default     = "v1.0.4"
+}
+
+variable "kube_vip_lease_duration" {
+  description = "kube-vip leader election lease duration in seconds. Increase when the API server is slow to renew leases."
+  type        = string
+  default     = "30"
+}
+
+variable "kube_vip_renew_deadline" {
+  description = "kube-vip leader election renew deadline in seconds."
+  type        = string
+  default     = "15"
+}
+
+variable "kube_vip_retry_period" {
+  description = "kube-vip leader election retry period in seconds."
+  type        = string
+  default     = "3"
 }
 
 variable "kubeadm_join_port" {

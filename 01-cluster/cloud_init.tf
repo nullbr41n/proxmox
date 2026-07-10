@@ -70,6 +70,7 @@ write_files:
       IFACE="$1"
       VIP="$2"
       VERSION="$3"
+      CP_HOSTNAME="$4"
       LOG_FILE="/var/log/install-kube-vip.log"
       MANIFEST_DIR="/etc/kubernetes/manifests"
       MANIFEST_PATH="$${MANIFEST_DIR}/kube-vip.yaml"
@@ -77,10 +78,22 @@ write_files:
       IMAGE="ghcr.io/kube-vip/kube-vip:$${VERSION}"
 
       exec >>"$${LOG_FILE}" 2>&1
-      echo "[$(date -Iseconds)] install-kube-vip start iface=$${IFACE} vip=$${VIP} version=$${VERSION}"
+      echo "[$(date -Iseconds)] install-kube-vip start iface=$${IFACE} vip=$${VIP} version=$${VERSION} hostname=$${CP_HOSTNAME}"
 
       mkdir -p "$${MANIFEST_DIR}"
       rm -f "$${TMP_PATH}"
+
+      echo "[$(date -Iseconds)] waiting for local apiserver on 127.0.0.1:6443"
+      for i in $(seq 1 90); do
+        if curl -skf --connect-timeout 2 https://127.0.0.1:6443/livez >/dev/null 2>&1; then
+          echo "[$(date -Iseconds)] local apiserver ready after $${i} attempts"
+          break
+        fi
+        if [ "$${i}" -eq 90 ]; then
+          echo "[$(date -Iseconds)] WARNING: local apiserver not ready after 180s, continuing anyway"
+        fi
+        sleep 2
+      done
 
       for i in $(seq 1 5); do
         echo "[$(date -Iseconds)] attempt=$${i} pull image"
@@ -104,13 +117,115 @@ write_files:
       test -s "$${TMP_PATH}"
 
       if [ -f /etc/kubernetes/super-admin.conf ]; then
-        echo "[$(date -Iseconds)] using super-admin.conf for kube-vip"
-        sed -i 's|path: /etc/kubernetes/admin.conf|path: /etc/kubernetes/super-admin.conf|' "$${TMP_PATH}"
+        echo "[$(date -Iseconds)] using super-admin.conf hostPath for kube-vip"
+        sed -i '/- hostPath:/,/name: kubeconfig/ s|path: /etc/kubernetes/admin.conf|path: /etc/kubernetes/super-admin.conf|' "$${TMP_PATH}"
       fi
+
+      if grep -q 'hostAliases:' "$${TMP_PATH}"; then
+        if ! grep -q "$${CP_HOSTNAME}" "$${TMP_PATH}"; then
+          sed -i "/- kubernetes/a\\    - $${CP_HOSTNAME}" "$${TMP_PATH}"
+        fi
+      else
+        printf '\n  hostAliases:\n  - hostnames:\n    - kubernetes\n    - %s\n    ip: 127.0.0.1\n' "$${CP_HOSTNAME}" >> "$${TMP_PATH}"
+      fi
+
+      case "$${VERSION}" in
+        v1.*)
+          if ! grep -q 'vip_preserve_on_leadership_loss' "$${TMP_PATH}"; then
+            sed -i '/name: vip_leaderelection/a\    - name: vip_preserve_on_leadership_loss\n      value: "true"' "$${TMP_PATH}"
+          fi
+          ;;
+      esac
+
+      sed -i "/name: vip_leaseduration/{n;s/value: \".*\"/value: \"${var.kube_vip_lease_duration}\"/}" "$${TMP_PATH}"
+      sed -i "/name: vip_renewdeadline/{n;s/value: \".*\"/value: \"${var.kube_vip_renew_deadline}\"/}" "$${TMP_PATH}"
+      sed -i "/name: vip_retryperiod/{n;s/value: \".*\"/value: \"${var.kube_vip_retry_period}\"/}" "$${TMP_PATH}"
 
       mv "$${TMP_PATH}" "$${MANIFEST_PATH}"
       echo "[$(date -Iseconds)] install-kube-vip complete"
     permissions: '0700'
+  - path: /etc/sysconfig/kube-vip-watchdog
+    content: |
+      KUBE_VIP_ADDRESS=${var.kubeadm_control_plane_vip}
+    permissions: '0644'
+  - path: /usr/local/bin/kube-vip-failover-watchdog.sh
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      VIP="$${KUBE_VIP_ADDRESS:?set in /etc/sysconfig/kube-vip-watchdog}"
+      COOLDOWN_FILE="/run/kube-vip-watchdog.last"
+      FAIL_FILE="/run/kube-vip-watchdog.failures"
+      COOLDOWN_SECS=60
+      FAIL_THRESHOLD=4
+
+      if [ -f "$${COOLDOWN_FILE}" ]; then
+        last="$(cat "$${COOLDOWN_FILE}")"
+        now="$(date +%s)"
+        if [ "$$((now - last))" -lt "$${COOLDOWN_SECS}" ]; then
+          exit 0
+        fi
+      fi
+
+      if curl -skf --connect-timeout 5 "https://$${VIP}:6443/livez" >/dev/null 2>&1; then
+        echo 0 > "$${FAIL_FILE}"
+        exit 0
+      fi
+
+      if ip -4 addr show | grep -q "$${VIP}/"; then
+        echo 0 > "$${FAIL_FILE}"
+        exit 0
+      fi
+
+      if ! curl -skf --connect-timeout 5 https://127.0.0.1:6443/livez >/dev/null 2>&1; then
+        echo 0 > "$${FAIL_FILE}"
+        exit 0
+      fi
+
+      failures=0
+      if [ -f "$${FAIL_FILE}" ]; then
+        failures="$(cat "$${FAIL_FILE}")"
+      fi
+      failures="$$((failures + 1))"
+      echo "$${failures}" > "$${FAIL_FILE}"
+
+      if [ "$${failures}" -lt "$${FAIL_THRESHOLD}" ]; then
+        exit 0
+      fi
+
+      logger -t kube-vip-watchdog "VIP $${VIP} unreachable for $${failures} checks while local apiserver is healthy; restarting kube-vip"
+      echo 0 > "$${FAIL_FILE}"
+      touch /etc/kubernetes/manifests/kube-vip.yaml
+      CID="$(crictl ps -a --name kube-vip -q 2>/dev/null | head -1 || true)"
+      if [ -n "$${CID}" ]; then
+        crictl stop "$${CID}" >/dev/null 2>&1 || true
+      fi
+      date +%s > "$${COOLDOWN_FILE}"
+    permissions: '0700'
+  - path: /etc/systemd/system/kube-vip-failover-watchdog.service
+    content: |
+      [Unit]
+      Description=Restart kube-vip when the API VIP is orphaned
+      ConditionPathExists=/etc/kubernetes/manifests/kube-vip.yaml
+
+      [Service]
+      Type=oneshot
+      EnvironmentFile=-/etc/sysconfig/kube-vip-watchdog
+      ExecStart=/usr/local/bin/kube-vip-failover-watchdog.sh
+    permissions: '0644'
+  - path: /etc/systemd/system/kube-vip-failover-watchdog.timer
+    content: |
+      [Unit]
+      Description=Check for orphaned kube-vip API VIP every 15 seconds
+
+      [Timer]
+      OnBootSec=60
+      OnUnitActiveSec=15
+      AccuracySec=1
+
+      [Install]
+      WantedBy=timers.target
+    permissions: '0644'
   - path: /usr/local/bin/do-control-plane-join.py
     content: |
       #!/usr/bin/env python3
@@ -386,8 +501,10 @@ runcmd:
       echo "${local.cp0_ip} ${var.kubeadm_control_plane_hostname}" >> /etc/hosts
       kubeadm init --control-plane-endpoint=${var.kubeadm_control_plane_hostname}:6443 --apiserver-advertise-address=${local.cp0_ip} --pod-network-cidr=10.244.0.0/16 --upload-certs --ignore-preflight-errors=all
     fi
-    /usr/local/bin/install-kube-vip.sh ${var.kube_vip_interface} ${var.kubeadm_control_plane_vip} ${var.kube_vip_version}
+    /usr/local/bin/install-kube-vip.sh ${var.kube_vip_interface} ${var.kubeadm_control_plane_vip} ${var.kube_vip_version} ${var.kubeadm_control_plane_hostname}
     test -s /etc/kubernetes/manifests/kube-vip.yaml
+    systemctl daemon-reload
+    systemctl enable --now kube-vip-failover-watchdog.timer
     mkdir -p /root/.kube /home/rocky/.kube
     if [ -f /etc/kubernetes/super-admin.conf ]; then cp -f /etc/kubernetes/super-admin.conf /root/.kube/config; else cp -f /etc/kubernetes/admin.conf /root/.kube/config; fi
     if [ -f /etc/kubernetes/super-admin.conf ]; then cp -f /etc/kubernetes/super-admin.conf /home/rocky/.kube/config; else cp -f /etc/kubernetes/admin.conf /home/rocky/.kube/config; fi
@@ -396,7 +513,7 @@ runcmd:
     if [ -f /etc/kubernetes/super-admin.conf ]; then KCFG=/etc/kubernetes/super-admin.conf; else KCFG=/etc/kubernetes/admin.conf; fi
     export KUBECONFIG=$KCFG
     mkdir -p /root/join-cmd
-    for i in $(seq 1 30); do curl -skf https://${var.kubeadm_control_plane_vip}:6443/healthz >/dev/null 2>&1 && break; sleep 2; done
+    for i in $(seq 1 60); do curl -skf https://${var.kubeadm_control_plane_vip}:6443/livez >/dev/null 2>&1 && break; sleep 2; done
     sed -i '/ ${var.kubeadm_control_plane_hostname}$/d' /etc/hosts
     echo "${var.kubeadm_control_plane_vip} ${var.kubeadm_control_plane_hostname}" >> /etc/hosts
     /usr/bin/python3 /usr/local/bin/refresh-join-files.py
@@ -441,15 +558,16 @@ runcmd:
     done
     [ -f /tmp/join-cp.txt ] || { echo "Failed to fetch join-cp.txt"; exit 1; }
     /usr/bin/python3 /usr/local/bin/do-control-plane-join.py ${cfg.ip} ${var.kubeadm_control_plane_hostname} /tmp/join-cp.txt
-    /usr/local/bin/install-kube-vip.sh ${var.kube_vip_interface} ${var.kubeadm_control_plane_vip} ${var.kube_vip_version}
+    /usr/local/bin/install-kube-vip.sh ${var.kube_vip_interface} ${var.kubeadm_control_plane_vip} ${var.kube_vip_version} ${var.kubeadm_control_plane_hostname}
     test -s /etc/kubernetes/manifests/kube-vip.yaml
+    systemctl daemon-reload
+    systemctl enable --now kube-vip-failover-watchdog.timer
     mkdir -p /root/.kube /home/rocky/.kube
     if [ -f /etc/kubernetes/super-admin.conf ]; then cp -f /etc/kubernetes/super-admin.conf /root/.kube/config; else cp -f /etc/kubernetes/admin.conf /root/.kube/config; fi
     if [ -f /etc/kubernetes/super-admin.conf ]; then cp -f /etc/kubernetes/super-admin.conf /home/rocky/.kube/config; else cp -f /etc/kubernetes/admin.conf /home/rocky/.kube/config; fi
     chown -R root:root /root/.kube
     chown -R rocky:rocky /home/rocky/.kube
     /usr/bin/python3 /usr/local/bin/refresh-join-files.py || true
-    systemctl daemon-reload
     systemctl enable --now join-server.service
 EOT
   }

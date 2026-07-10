@@ -1,5 +1,98 @@
 # Troubleshooting
 
+## kube-vip VIP did not fail over until kube-vip was manually restarted
+
+### Symptoms (live cluster)
+
+- Control-plane node with the VIP went down or became unstable
+- Surviving nodes still had a healthy local apiserver (`curl -k https://127.0.0.1:6443/livez` returns `ok`)
+- `curl -k https://<VIP>:6443/livez` failed on all nodes
+- `ip -4 addr show | grep <VIP>` returned nothing everywhere
+- Manually stopping/restarting the kube-vip static pod fixed it
+
+### Root cause
+
+kube-vip v0.8.x has two problems during live failover:
+
+1. **VIP orphan window** — when the leader loses its lease, it deletes the VIP immediately. Until a new leader wins election and re-binds the address, the API endpoint is unreachable through the VIP.
+2. **Stalled election** — follower kube-vip pods can get stuck watching leadership without re-binding the VIP. Restarting kube-vip forces a fresh election, which is why your manual `crictl stop` worked.
+
+This is not a bootstrap issue. It happens on running clusters when the VIP-holding node reboots, crash-loops apiserver, or loses API connectivity briefly.
+
+### kube-vip CrashLoopBackOff with `lost leadership, restarting kube-vip`
+
+kube-vip defaults to very aggressive leader-election timings (`lease=5s`, `renew=3s`). When the API server is slow, lease renewal times out and kube-vip exits fatally:
+
+```text
+Failed to update lock: .../leases/plndr-cp-lock: context deadline exceeded
+level=fatal msg="lost leadership, restarting kube-vip"
+```
+
+The repo now patches generated manifests to relaxed timings (`30/15/3`) via `kube_vip_lease_duration`, `kube_vip_renew_deadline`, and `kube_vip_retry_period` in `01-cluster/variables.tf`.
+
+On a running cluster, re-apply from the repo:
+
+```bash
+sudo bash 01-cluster/scripts/fix-kube-vip.sh
+grep -A1 -E 'leaseduration|renewdeadline|retryperiod' /etc/kubernetes/manifests/kube-vip.yaml
+```
+
+### Diagnostics
+
+```bash
+VIP="10.10.10.20"   # replace with your kubeadm_control_plane_vip
+
+# On each control-plane node
+curl -k --connect-timeout 5 https://127.0.0.1:6443/livez
+curl -k --connect-timeout 5 https://${VIP}:6443/livez
+ip -4 addr show | grep "${VIP}"
+crictl ps -a --name kube-vip
+crictl logs --tail 50 $(crictl ps -a --name kube-vip -q | head -1)
+kubectl get lease -n kube-system plndr-cp-lock -o yaml
+```
+
+### Fix on a running cluster
+
+Run on **every** control-plane node:
+
+```bash
+# From the repo on your laptop, copy the script to each node:
+# scp 01-cluster/scripts/fix-kube-vip.sh root@cp-0:/tmp/
+# scp 01-cluster/scripts/fix-kube-vip.sh root@cp-1:/tmp/
+# scp 01-cluster/scripts/fix-kube-vip.sh root@cp-2:/tmp/
+
+sudo bash /tmp/fix-kube-vip.sh --vip 10.10.10.20 --hostname api.server.local --version v1.0.4
+```
+
+This upgrades kube-vip to v1.0.4+, enables `vip_preserve_on_leadership_loss`, fixes the super-admin kubeconfig mount, and installs a watchdog that automatically does what you did manually: restart kube-vip when the VIP is down but the local apiserver is healthy.
+
+Verify after patching:
+
+```bash
+systemctl status kube-vip-failover-watchdog.timer
+grep vip_preserve_on_leadership_loss /etc/kubernetes/manifests/kube-vip.yaml
+for n in cp-0 cp-1 cp-2; do echo "=== $n ==="; ssh $n "curl -sk https://10.10.10.20:6443/livez; ip -4 addr show | grep 10.10.10.20 || true"; done
+```
+
+### Manual one-shot recovery (same as your workaround)
+
+```bash
+VIP="10.10.10.20"
+curl -skf https://127.0.0.1:6443/livez   # must succeed first
+crictl stop $(crictl ps -a --name kube-vip -q | head -1)
+sleep 10
+curl -skf https://${VIP}:6443/livez
+```
+
+If apiserver is crash-looping, fix that before kube-vip:
+
+```bash
+crictl logs --tail 100 $(crictl ps -a --name kube-apiserver -q | head -1)
+journalctl -u kubelet -n 100 --no-pager
+```
+
+---
+
 ## api.server.local: connection refused on port 6443 (after adding join nodes)
 
 ### Likely causes
