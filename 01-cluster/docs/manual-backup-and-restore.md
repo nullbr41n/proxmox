@@ -4,6 +4,23 @@ This document describes a clean manual backup and restore workflow for the kubea
 
 Use this when you want a recovery path that does not depend on Proxmox snapshots.
 
+## Automated Daily Backup
+
+Control-plane nodes run `k8s-control-plane-backup.timer` (cloud-init on new nodes, or `scripts/install-control-plane-backup.sh` on existing ones).
+
+Output layout:
+
+```text
+/mnt/backup/k8s/cluster/<site>/{daily,weekly}/<timestamp>/
+  snapshot.db
+  k8s-control-plane-files.tgz
+  META.txt
+```
+
+`<site>` defaults to `kubernetes_topology_zone` (e.g. `khet`, `bhado`). Only one CP performs each run (NFS flock).
+
+The manual procedure below is still the restore path after quorum loss; automation only covers taking backups.
+
 ## Scope
 
 This covers:

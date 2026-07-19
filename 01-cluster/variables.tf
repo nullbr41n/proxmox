@@ -320,3 +320,33 @@ variable "backup_nfs_mount_options" {
   type        = string
   default     = "rw,vers=4.2,rsize=262144,wsize=262144,hard,proto=tcp,timeo=600,retrans=2,sec=sys,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30"
 }
+
+variable "cluster_backup_enabled" {
+  description = "Install a systemd timer on control-plane nodes that snapshots etcd and archives PKI/manifests to the backup NFS mount."
+  type        = bool
+  default     = true
+}
+
+variable "cluster_backup_name" {
+  description = "Site/color subdirectory under k8s/cluster/ on the backup mount (e.g. khet, bhado)."
+  type        = string
+  default     = ""
+}
+
+variable "cluster_backup_on_calendar" {
+  description = "systemd OnCalendar expression for control-plane backups."
+  type        = string
+  default     = "*-*-* 03:15:00"
+}
+
+variable "cluster_backup_keep_daily" {
+  description = "Number of daily control-plane backup directories to retain."
+  type        = number
+  default     = 7
+}
+
+variable "cluster_backup_keep_weekly" {
+  description = "Number of weekly control-plane backup directories to retain."
+  type        = number
+  default     = 4
+}
