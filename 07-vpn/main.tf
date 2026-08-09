@@ -218,7 +218,7 @@ resource "kubernetes_deployment_v1" "wg_easy" {
 
           env {
             name  = "WG_HOST"
-            value = var.wg_easy_ip
+            value = var.wg_easy_host
           }
 
           env {

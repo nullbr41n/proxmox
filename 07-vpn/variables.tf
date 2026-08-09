@@ -27,7 +27,12 @@ variable "coredns_vpn_ip" {
 }
 
 variable "wg_easy_ip" {
-  description = "MetalLB IP for wg-easy. WireGuard peers connect to this on UDP 51820; admin UI is on TCP 51821."
+  description = "MetalLB IP for the wg-easy Kubernetes Service (internal cluster IP)."
+  type        = string
+}
+
+variable "wg_easy_host" {
+  description = "Public IP or hostname embedded in client WireGuard configs as the Endpoint. Must be reachable on UDP 51820 from the internet."
   type        = string
 }
 
