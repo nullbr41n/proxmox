@@ -176,6 +176,13 @@ resource "kubernetes_deployment_v1" "wg_easy" {
   spec {
     replicas = 1
 
+    # Recreate terminates the old pod before starting the new one.
+    # Required for a RWO PVC — RollingUpdate would deadlock waiting
+    # for the volume to detach before it can attach to the new pod.
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = { app = "wg-easy" }
     }
@@ -186,6 +193,25 @@ resource "kubernetes_deployment_v1" "wg_easy" {
       }
 
       spec {
+        # Rocky Linux 9 (RHEL 9) defaults to nftables; iptable_nat is present
+        # but not auto-loaded. wg-quick uses legacy iptables for NAT, so the
+        # module must be loaded into the host kernel before wg-easy starts.
+        init_container {
+          name    = "init-modules"
+          image   = "busybox:1.36"
+          command = ["sh", "-c", "modprobe iptable_nat"]
+
+          security_context {
+            privileged = true
+          }
+
+          volume_mount {
+            name       = "lib-modules"
+            mount_path = "/lib/modules"
+            read_only  = true
+          }
+        }
+
         container {
           name  = "wg-easy"
           image = "ghcr.io/wg-easy/wg-easy:${var.wg_easy_image_tag}"
@@ -248,6 +274,13 @@ resource "kubernetes_deployment_v1" "wg_easy" {
           name = "data"
           persistent_volume_claim {
             claim_name = kubernetes_persistent_volume_claim_v1.wg_easy.metadata[0].name
+          }
+        }
+
+        volume {
+          name = "lib-modules"
+          host_path {
+            path = "/lib/modules"
           }
         }
       }
