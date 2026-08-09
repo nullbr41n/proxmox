@@ -186,18 +186,6 @@ resource "kubernetes_deployment_v1" "wg_easy" {
       }
 
       spec {
-        # Enable IP forwarding in the pod network namespace so WireGuard can
-        # forward packets between VPN clients and the cluster network.
-        init_container {
-          name    = "init-sysctl"
-          image   = "busybox:1.36"
-          command = ["sh", "-c", "sysctl -w net.ipv4.ip_forward=1 net.ipv4.conf.all.src_valid_mark=1"]
-
-          security_context {
-            privileged = true
-          }
-        }
-
         container {
           name  = "wg-easy"
           image = "ghcr.io/wg-easy/wg-easy:${var.wg_easy_image_tag}"
@@ -244,10 +232,10 @@ resource "kubernetes_deployment_v1" "wg_easy" {
             protocol       = "TCP"
           }
 
+          # Privileged is required: wg-quick needs to load iptable_nat and
+          # set up NAT rules, which NET_ADMIN alone does not allow in a container.
           security_context {
-            capabilities {
-              add = ["NET_ADMIN"]
-            }
+            privileged = true
           }
 
           volume_mount {
