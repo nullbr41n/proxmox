@@ -16,6 +16,10 @@ What it does:
   3. Verifies the surviving cluster looks healthy enough for a replacement.
   4. Removes a stale etcd member for the target hostname/IP on the healthy survivor.
   5. Forces Terraform to replace the target node with cp0_bootstrap_mode=join.
+  6. Relies on first-boot cloud-init package_update/package_upgrade so the new VM
+     gets latest Rocky/OS packages, plus latest kube *patch* in kubernetes_repo_version
+     (major.minor channel). Bump that var intentionally to move kube minors.
+     Refresh ../00-base beforehand if you want a newer GenericCloud.latest golden image.
 
 Examples:
   ./scripts/replace-control-plane.sh cp-0
@@ -279,6 +283,19 @@ fi
 
 echo "Target: ${TARGET} (${TARGET_IP})"
 echo "Survivor: ${SSH_USER}@${SURVIVOR}"
+
+BASE_DIR="$(cd "${STACK_DIR}/../00-base" && pwd)"
+if [[ -d "${BASE_DIR}" ]]; then
+  echo "Refreshing Rocky GenericCloud.latest via ${BASE_DIR} (overwrite on Content-Length change)..."
+  (
+    cd "${BASE_DIR}"
+    if [[ "${AUTO_APPROVE}" -eq 1 ]]; then
+      terraform apply -auto-approve
+    else
+      terraform apply
+    fi
+  ) || echo "WARNING: 00-base refresh failed or was skipped; continuing with existing golden image. First-boot package_upgrade still applies latest packages." >&2
+fi
 
 if [[ "${TARGET}" == "cp-0" ]]; then
   FILE_REPLACE='-replace=proxmox_virtual_environment_file.cloud_init_cp0'

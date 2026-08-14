@@ -77,6 +77,25 @@ Example: `cp-1` is bad.
 
 This keeps quorum while the replacement joins.
 
+### Immutable OS / package currency
+
+Do **not** `dnf update` live nodes. Nodes are disposable.
+
+**On every replace**
+
+1. `00-base` → `Rocky-9-GenericCloud.latest` (`overwrite=true`)
+2. First-boot `package_update` + `package_upgrade` (Rocky/OS)
+3. Install kubelet/kubeadm/kubectl from `kubernetes_repo_version` → latest **patch** in that major.minor channel
+4. CP: `./scripts/replace-control-plane.sh <cp-N>` · Workers: add/remove slots
+
+**Intentional kube minor move**
+
+Bump `kubernetes_repo_version`, then follow the **kubeadm upgrade apply → other CPs → workers** checklist in  
+`nullbrain/projects/runbooks/khet-upgrade-and-recovery.md` §2B (do **not** replace onto N+1 while apiservers are still on N).  
+Kubernetes **major** stays `1.x`. Stable only.
+
+Interns: expand the `<details>` sections in that runbook (copy-paste). Seniors: skim the table at the top of §2.
+
 ### Recreate cp-0
 
 If `cp-0` is lost but other control-plane nodes still hold quorum:

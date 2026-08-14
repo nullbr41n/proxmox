@@ -119,8 +119,9 @@ variable "snippet_datastore_id" {
 }
 
 variable "kubernetes_repo_version" {
-  type    = string
-  default = "v1.34"
+  description = "pkgs.k8s.io stable channel to lock (e.g. v1.34 = major.minor). On replace, bootstrap installs the latest patch in this channel. Bump intentionally to move minors (v1.34 → v1.35). Kubernetes major stays 1.x."
+  type        = string
+  default     = "v1.34"
 }
 
 variable "kubeadm_control_plane_hostname" {

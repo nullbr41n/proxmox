@@ -19,10 +19,19 @@ resource "kubernetes_config_map_v1" "coredns_vpn" {
     Corefile = <<-COREFILE
       ${var.intra_domain} {
           template IN A {
-              answer "{{ .Name }} 60 IN A ${var.ingress_ip}"
+              answer "{{ .Name }} 60 IN A ${var.npm_ip != "" ? var.npm_ip : var.ingress_ip}"
           }
           cache 30
       }
+      %{for domain in var.npm_domains~}
+
+      ${domain} {
+          hosts {
+              ${var.npm_ip} ${domain}
+          }
+          cache 30
+      }
+      %{endfor~}
 
       . {
           health :8080

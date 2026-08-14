@@ -63,6 +63,8 @@ cd 01-cluster
 ./scripts/replace-control-plane.sh cp-1
 ```
 
+**Hard rule:** do not `dnf update` live nodes. OS/package currency = refresh `00-base` + replace (see `AGENTS.md`, `01-cluster/README.md`).
+
 This is the simplified Kubernetes layout for a single Proxmox host.
 
 It is designed for:

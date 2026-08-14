@@ -71,3 +71,15 @@ variable "storage_class_name" {
   type        = string
   default     = "lvm-4tb"
 }
+
+variable "npm_ip" {
+  description = "IP of the reverse proxy (e.g. Nginx Proxy Manager) for domains not served by the cluster ingress."
+  type        = string
+  default     = ""
+}
+
+variable "npm_domains" {
+  description = "Additional hostnames to resolve to npm_ip via VPN CoreDNS."
+  type        = list(string)
+  default     = []
+}
