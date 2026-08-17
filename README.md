@@ -6,6 +6,7 @@
 - Then apply `02-metallb`, `03-networking`, `04-ingress-nginx`, `05-argocd`, then `06-argocd-apps`.
 - Everything after a functional Argo CD bootstrap now lives under `projects/`.
 - Put secrets in `.env` as `TF_VAR_*`, not in committed `terraform.tfvars`.
+  - Example: `07-vpn` → `TF_VAR_wg_easy_password_hash` (see `.env.example`).
 - Later runs: do not treat an existing cluster like fresh bootstrap. Replace bad nodes with `01-cluster/scripts/replace-control-plane.sh`.
 
 ## Usage
