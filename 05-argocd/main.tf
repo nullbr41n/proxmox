@@ -10,6 +10,10 @@ resource "helm_release" "argocd" {
 
   values = [yamlencode({
     configs = {
+      cm = {
+        # Default 180s; khet storage is IO-bound — reconcile less often to cut disk/API load.
+        "timeout.reconciliation" = "600s"
+      }
       params = {
         "server.insecure" = "true"
       }
