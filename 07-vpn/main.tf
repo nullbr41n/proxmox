@@ -6,7 +6,7 @@ resource "kubernetes_namespace_v1" "vpn" {
 
 # ── VPN DNS ──────────────────────────────────────────────────────────────────
 # Dedicated CoreDNS instance owned entirely by this stage.
-# Resolves *.intra_domain → ingress IP; forwards everything else to public DNS.
+# Resolves *.intra_domain → ingress IP; forwards everything else to OPNsense.
 # Runs 2 replicas so it survives node loss without touching cluster CoreDNS.
 
 resource "kubernetes_config_map_v1" "coredns_vpn" {
@@ -36,7 +36,7 @@ resource "kubernetes_config_map_v1" "coredns_vpn" {
       . {
           health :8080
           ready  :8181
-          forward . 1.1.1.1 8.8.8.8
+          forward . 10.10.11.254
           cache 300
           errors
       }
@@ -60,6 +60,9 @@ resource "kubernetes_deployment_v1" "coredns_vpn" {
     template {
       metadata {
         labels = { app = "coredns-vpn" }
+        annotations = {
+          "nullbrain.com/coredns-config-hash" = sha256(kubernetes_config_map_v1.coredns_vpn.data["Corefile"])
+        }
       }
 
       spec {
