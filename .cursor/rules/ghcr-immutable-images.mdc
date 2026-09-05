@@ -1,0 +1,20 @@
+---
+description: Ship container images only via GHCR; never mutate node-local container images
+alwaysApply: true
+---
+
+# Container images — GHCR only (hard rule)
+
+Nodes and the container runtime are **immutable delivery targets**. Never sideload, import, or rewrite images on cluster nodes.
+
+## Required path
+
+1. Build → push `ghcr.io/nullbr41n/<image>:<tag>` → pin in GitOps → cluster **pull**
+2. Auth: `~/.GITHUB_TOKEN` (`write:packages` + `repo`). Missing/bad scopes → **ask the user**. Never fall back to node mutation.
+
+## Forbidden
+
+- `ctr`/`crictl`/`nerdctl` image import/load on nodes
+- `docker save | ssh` into the cluster
+- `imagePullPolicy: Never` to paper over a missing GHCR tag
+- Any local-only image workaround when GHCR push fails

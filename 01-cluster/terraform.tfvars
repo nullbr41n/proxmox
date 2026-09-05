@@ -23,6 +23,8 @@ vm_resolv_nameserver = "10.10.10.254"
 
 proxmox_ssh_user = "nixservuser001"
 
+# On replace: latest Rocky/OS + latest kube *patch* in this major.minor channel.
+# Bump kubernetes_repo_version intentionally to move minors (v1.34 → v1.35). Major stays 1.x.
 kubernetes_repo_version        = "v1.34"
 kubeadm_control_plane_hostname = "api.server.local"
 kubeadm_control_plane_vip      = "10.10.10.20"

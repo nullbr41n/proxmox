@@ -597,6 +597,15 @@ write_files:
       WantedBy=multi-user.target
     permissions: '0644'
 
+# Always refresh metadata and upgrade Rocky/OS packages on first boot
+# (node-replace currency: kernel, openssl, systemd, …).
+# Kubernetes: locked to kubernetes_repo_version major.minor channel (e.g. v1.34);
+# install unpinned kubelet/kubeadm/kubectl so replace picks the latest *patch*
+# in that channel. Bump kubernetes_repo_version intentionally to move minors.
+# Kubernetes major stays 1.x (stable only — no nightly/alpha).
+package_update: true
+package_upgrade: true
+
 packages:
   - dnf-plugins-core
   - containerd.io
@@ -616,6 +625,7 @@ runcmd:
     set -e
     echo cp-0 > /etc/hostname
     hostname cp-0 || true
+    echo "[bootstrap] os=$(. /etc/os-release; echo $PRETTY_NAME) kernel=$(uname -r) openssl=$(rpm -q openssl) kubelet=$(rpm -q kubelet) kubeadm=$(rpm -q kubeadm)"
     swapoff -a || true
     sed -i '/ swap / s/^/#/' /etc/fstab
     /usr/local/bin/setup-backup-nfs.sh
@@ -670,7 +680,11 @@ runcmd:
     if [ "${var.cluster_backup_enabled}" = "true" ]; then
       systemctl enable --now k8s-control-plane-backup.timer
     fi
-    until kubectl --kubeconfig=$KCFG apply --validate=false -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml; do sleep 15; done
+    echo "[bootstrap] os=$(. /etc/os-release; echo $PRETTY_NAME) kernel=$(uname -r) openssl=$(rpm -q openssl) kubelet=$(rpm -q kubelet) kubeadm=$(rpm -q kubeadm)"
+    # CNI only on fresh init. Join/replace must not re-apply Flannel over an existing Cilium (or other) CNI.
+    if [ "${var.cp0_bootstrap_mode}" = "init" ]; then
+      until kubectl --kubeconfig=$KCFG apply --validate=false -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml; do sleep 15; done
+    fi
 EOT
 
   control_plane_join_runcmd = {
@@ -682,6 +696,7 @@ runcmd:
     set -e
     echo ${name} > /etc/hostname
     hostname ${name} || true
+    echo "[bootstrap] os=$(. /etc/os-release; echo $PRETTY_NAME) kernel=$(uname -r) openssl=$(rpm -q openssl) kubelet=$(rpm -q kubelet) kubeadm=$(rpm -q kubeadm)"
     swapoff -a || true
     sed -i '/ swap / s/^/#/' /etc/fstab
     /usr/local/bin/setup-backup-nfs.sh
@@ -736,6 +751,7 @@ runcmd:
     set -e
     echo worker-${slot} > /etc/hostname
     hostname worker-${slot} || true
+    echo "[bootstrap] os=$(. /etc/os-release; echo $PRETTY_NAME) kernel=$(uname -r) openssl=$(rpm -q openssl) kubelet=$(rpm -q kubelet) kubeadm=$(rpm -q kubeadm)"
     swapoff -a || true
     sed -i '/ swap / s/^/#/' /etc/fstab
     /usr/local/bin/setup-backup-nfs.sh

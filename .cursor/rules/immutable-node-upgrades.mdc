@@ -1,0 +1,18 @@
+---
+description: OS + kube patches on replace; lock major.minor channel; bump channel to move minors
+alwaysApply: true
+---
+
+# Upgrades (hard rule)
+
+Never live `dnf update`. Replace nodes only.
+
+| On every replace | Intentional |
+|------------------|-------------|
+| Latest Rocky/OS via `package_upgrade` | Bump `kubernetes_repo_version` to move kube **minors** |
+| Latest kube **patch** in locked channel (e.g. v1.34 → 1.34.x) | Kubernetes **major** stays 1.x; stable only |
+
+CP: `./scripts/replace-control-plane.sh <cp-N>`  
+Workers: add slot → apply → drain/delete old → remove slot → apply
+
+Docs: `01-cluster/README.md`
